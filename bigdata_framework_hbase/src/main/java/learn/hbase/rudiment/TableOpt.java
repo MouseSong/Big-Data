@@ -1,7 +1,9 @@
 package learn.hbase.rudiment;
 
-import java.io.IOException; 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -10,13 +12,24 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HTableInterface;
+import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import static learn.hbase.utils.Utils.print;
 
 /**
  * HBase Table rudiment operation.
@@ -34,6 +47,9 @@ public class TableOpt {
 	private Map<String, String> optException = new HashMap<String, String>();
 	private Configuration configuration;
 	private Connection conn;
+	
+	String tableName = "ln_test";
+	String columnFamily = "colfamily_one";
 	
 	/**
 	 * Init HBase configuration and connection.
@@ -73,7 +89,7 @@ public class TableOpt {
 	 *  Table name and column family must be given when create table on HBase.
 	 * </p>
 	 * */
-	@Test
+	//@Test
 	public void createTable() throws Exception{
 		
 		String tableName = "ln_test";
@@ -96,13 +112,87 @@ public class TableOpt {
 		}
 	}
 	
+	/**
+	 * insert data into HBase table.
+	 * table-rowkey-column family - column - value
+	 * */
+	@SuppressWarnings({ "deprecation", "resource" })
+	//@Test
+	public void insert() throws Exception{
+		String rowKey1 = "user_id_zhangsan";
+		columnFamily = "info";
+		Put put = new Put(rowKey1.getBytes());
+		//column family, column, value
+		put.add(columnFamily.getBytes(), "name".getBytes(), "ZhangSan".getBytes());
+	    put.add(columnFamily.getBytes(), "email".getBytes(), "zhangsan@gmail.com".getBytes());
+	    put.add(columnFamily.getBytes(), "password".getBytes(), "zs1990..".getBytes());
+	    
+	    HTableInterface table = getTable("user");
+	    table.put(put);
+	    
+	    //table.put(List<Put>); //批量插入
+	}
+	
+	/**
+	 * delete by row key.
+	 * @throws Exception 
+	 * */
+	@SuppressWarnings("deprecation")
+	//@Test
+	public void delete() throws Exception{
+		HTableInterface table = getTable("user");
+		List<Delete> deleteRows = new ArrayList<Delete>();
+		
+		String rowKey = "user_id_zhangsan";
+		Delete del = new Delete(rowKey.getBytes());
+		deleteRows.add(del);
+		
+		//batch delete
+		table.delete(deleteRows);
+	}
 	
 	
+	/**
+	 * get data of row
+	 * @throws Exception 
+	 * */
+	//@Test
+	public void getOne() throws Exception{
+		@SuppressWarnings("deprecation")
+		HTableInterface table = getTable("user");
+		String rowKey = "user_id_zhangsan";
+		Get get = new Get(rowKey.getBytes());
+		Result result = table.get(get);
+		
+		for(KeyValue kv : result.raw()){
+			print("Row Key:" + new String(kv.getRow()));
+			print("Column Family:" + new String(kv.getFamily()));
+			print("Qualifier:" + new String(kv.getQualifier()));
+			print("Timestamp:" + kv.getTimestamp());
+			print("Value:" + new String(kv.getValue()));
+		}
+	}
 	
-	
-	
-	
-	
+	/**
+	 * get all data.
+	 * @throws Exception 
+	 * */
+	@Test
+	public void getAll() throws Exception{
+		HTableInterface table = getTable("user");
+		Scan scan = new Scan();
+		ResultScanner scanner = table.getScanner(scan);
+		
+		for(Result result : scanner){
+			for(KeyValue kv : result.raw()){
+				print("Row Key:" + new String(kv.getRow()));
+				print("Column Family:" + new String(kv.getFamily()));
+				print("Qualifier:" + new String(kv.getQualifier()));
+				print("Timestamp:" + kv.getTimestamp());
+				print("Value:" + new String(kv.getValue()));
+			}
+		}
+	}
 	
 	
 	
@@ -115,6 +205,13 @@ public class TableOpt {
 				optException.put("cleanup()", e.getMessage());
 			}
 		}
+	}
+	
+	@SuppressWarnings({"deprecation", "resource" })
+	private HTableInterface getTable(String tableName){
+		 HTablePool tablePool = new HTablePool(configuration, 10);
+		    HTableInterface table = tablePool.getTable(tableName.getBytes());
+		 return table;   
 	}
 	
 	
