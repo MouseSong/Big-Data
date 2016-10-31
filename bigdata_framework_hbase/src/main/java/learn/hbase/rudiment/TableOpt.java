@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -177,7 +178,7 @@ public class TableOpt {
 	 * get all data.
 	 * @throws Exception 
 	 * */
-	@Test
+	//@Test
 	public void getAll() throws Exception{
 		HTableInterface table = getTable("user");
 		Scan scan = new Scan();
@@ -194,11 +195,54 @@ public class TableOpt {
 		}
 	}
 	
+	/**
+	 * get part of data set
+	 * @throws IOException 
+	 * */
+	@SuppressWarnings("deprecation")
+	//@Test
+	public void getApart() throws IOException{
+		String rowKey1 = "user_id_zhangsan";
+		columnFamily = "info";
+		HTableInterface table = getTable("user");
+		Get get = new Get(rowKey1.getBytes());
+		//get.addFamily(columnFamily.getBytes());
+		//column family, columnName
+		get.addColumn(columnFamily.getBytes(), "email".getBytes());
+	   
+		Result result = table.get(get);
+		
+		for(KeyValue kv : result.raw()){
+		    print(new String(kv.getValue()));
+		}
+	}
+	
+	
+	/**
+	 * get by timestamp
+	 * @throws Exception 
+	 * */
+	@SuppressWarnings("deprecation")
+	@Test
+	public void getByTimeStamp() throws Exception{
+		HTableInterface table = getTable("user");
+		Get get = new Get("user_id_zhangsan".getBytes());
+		//get.addFamily("info".getBytes());
+		//get.addColumn("info".getBytes(), "email".getBytes());
+	    Result result = table.get(get);
+	    //result.getValue("info".getBytes(), "email".getBytes());
+		
+		List<KeyValue> kvs = result.getColumn("info".getBytes(), "email".getBytes());
+	    kvs.forEach(item -> {
+	    	System.out.println(new String(item.getValue()));
+	    	System.out.println(item.getTimestamp());
+	    });
+	}
 	
 	
 	
 	private void cleanup(){
-		if(conn != null){
+		if(!Objects.isNull(conn)){
 			try {
 				conn.close();
 			} catch (IOException e) {
