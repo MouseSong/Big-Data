@@ -318,12 +318,6 @@ public class HostInfo {
 		}
 	}
 
-
-	@Override
-	public String toString() {
-		return "HostInfo [cpuNum=" + cpuNum + ", cpus=" + Arrays.toString(cpus) + ", diskNum=" + diskNum
-				+ ", fileSystem=" + Arrays.toString(fileSystem) + ", memory=" + memory + ", os=" + os + "]";
-	}
 	
 	
 }
