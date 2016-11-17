@@ -1,6 +1,8 @@
-package learn.hadoop.inaction;
+package learn.hadoop.inaction.book;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -17,12 +19,14 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-
 /**
- * 统计学生成绩.
- * @author zhangdong
+ * 单表连接.
+ * 1.如何进行自连接
+ *    用标识区分左表 和 右表
+ * 2.连接列的设置
+ *    
  * */
-public class StatisticStuScore extends Configured implements Tool{
+public class SingleJoin extends Configured implements Tool{
 
 	/**
 	 * 1.根据InputFormat生产InputSplit
@@ -36,8 +40,11 @@ public class StatisticStuScore extends Configured implements Tool{
 		@Override
 		protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, Text>.Context context)
 				throws IOException, InterruptedException {
-			String[] stuInfo = value.toString().split(" ");
-			context.write(new Text(stuInfo[0]), new Text(stuInfo[1]));
+		     String[] relation = value.toString().split(" ");
+		     if(relation.length == 2){
+		    	 context.write(new Text(relation[0]), new Text("1-" + relation[1]));
+		    	 context.write(new Text(relation[1]), new Text("2-" + relation[0]));
+		     }
 		}
 	}
 	
@@ -51,18 +58,31 @@ public class StatisticStuScore extends Configured implements Tool{
 		@Override
 		protected void reduce(Text key, Iterable<Text> values,
 				Reducer<Text, Text, Text, Text>.Context context) throws IOException, InterruptedException {
-			// TODO Auto-generated method stub
-		    String scores = "";
-		    for(Text score : values){
-		    	scores += score + " ";
-		    }
-		    context.write(key, new Text(scores));
+			final List<String> left = new ArrayList<String>();
+			final List<String> right = new ArrayList<String>();
+			values.forEach(item -> {
+				if(item.toString().startsWith("1-")){
+					left.add(item.toString().substring(2));
+				}else{
+					right.add(item.toString().substring(2));
+				}
+			});
+			
+			left.forEach(leftV -> {
+				right.forEach(rightV -> {
+					try {
+						context.write(new Text(rightV), new Text(leftV));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				});
+			});
 		}
 	}
 	
 	public int run(String[] args) throws Exception {
 		// TODO Auto-generated method stub
-		Job job = new Job(getConf(), "StatisticStuScore");
+		Job job = new Job(getConf(), "SingleJoin");
 		job.setMapperClass(MapClass.class);
 		job.setReducerClass(ReduceClass.class);
 		
@@ -82,15 +102,13 @@ public class StatisticStuScore extends Configured implements Tool{
 	}
 	
 	public static void main(String[] args) throws Exception {
-		String[] params = {"hdfs://node1:9000/inaction/stuscore/in", 
-        "hdfs://node1:9000/inaction/stuscore/out/1"};
-
+		String[] params = {"hdfs://node1:9000/inaction/singlejoin/in", 
+        "hdfs://node1:9000/inaction/singlejoin/out/1"};
 
 		Configuration config = new Configuration();
 		config.addResource("hadoop-config.xml");
 		
-		int result = ToolRunner.run(config, new WordCount(), params);
+		int result = ToolRunner.run(config, new SingleJoin(), params);
 		System.exit(result);
 	}
-
 }
